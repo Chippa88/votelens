@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id               String   @id @default(uuid())
+  fecCandidateId   String?  @unique @map("fec_candidate_id")
+  bioguideId       String?  @unique @map("bioguide_id")
+  propublicaId     String?  @map("propublica_id")
+  fullName         String   @map("full_name")
+  party            String?
+  office           String?  // H, S, P
+  state            String?
+  district         String?
+  incumbent        Boolean  @default(false)
+  campaignWebsite  String?  @map("campaign_website")
+  photoUrl         String?  @map("photo_url")
+  electionCycle    Int?     @map("election_cycle")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  financeTotals    FinanceTotal[]
+  donations        Donation[]
+  votes            Vote[]
+  policyPositions  PolicyPosition[]
+  memberStats      MemberStat[]
+
+  @@map("candidates")
+}
+
+model FinanceTotal {
+  id                     String    @id @default(uuid())
+  candidateId            String    @map("candidate_id")
+  cycle                  Int
+  totalReceipts          Decimal?  @map("total_receipts") @db.Decimal(15, 2)
+  totalDisbursements     Decimal?  @map("total_disbursements") @db.Decimal(15, 2)
+  cashOnHand             Decimal?  @map("cash_on_hand") @db.Decimal(15, 2)
+  individualItemized     Decimal?  @map("individual_itemized") @db.Decimal(15, 2)
+  individualUnitemized   Decimal?  @map("individual_unitemized") @db.Decimal(15, 2)
+  pacContributions       Decimal?  @map("pac_contributions") @db.Decimal(15, 2)
+  candidateContributions Decimal?  @map("candidate_contributions") @db.Decimal(15, 2)
+  lastUpdated            DateTime  @default(now()) @map("last_updated")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([candidateId, cycle])
+  @@map("finance_totals")
+}
+
+model Donation {
+  id                      String   @id @default(uuid())
+  candidateId             String   @map("candidate_id")
+  contributorName         String?  @map("contributor_name")
+  contributorEmployer     String?  @map("contributor_employer")
+  contributorOccupation   String?  @map("contributor_occupation")
+  amount                  Decimal? @db.Decimal(12, 2)
+  contributionDate        DateTime? @map("contribution_date")
+  memoText                String?  @map("memo_text")
+  cycle                   Int?
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@map("donations")
+}
+
+model Vote {
+  id              String   @id @default(uuid())
+  candidateId     String   @map("candidate_id")
+  billId          String?  @map("bill_id")
+  billTitle       String?  @map("bill_title")
+  billSummary     String?  @map("bill_summary")
+  votePosition    String?  @map("vote_position") // Yes, No, Not Voting, Present
+  voteDate        DateTime? @map("vote_date")
+  congressNumber  Int?     @map("congress_number")
+  chamber         String?  // House, Senate
+  rollCallNumber  Int?     @map("roll_call_number")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@map("votes")
+}
+
+model PolicyPosition {
+  id              String   @id @default(uuid())
+  candidateId     String   @map("candidate_id")
+  topic           String
+  positionSummary String?  @map("position_summary")
+  sourceUrl       String?  @map("source_url")
+  confidenceScore Decimal? @map("confidence_score") @db.Decimal(3, 2)
+  lastScraped     DateTime? @map("last_scraped")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([candidateId, topic])
+  @@map("policy_positions")
+}
+
+model MemberStat {
+  id               String  @id @default(uuid())
+  candidateId      String  @map("candidate_id")
+  congressNumber   Int     @map("congress_number")
+  partyLoyaltyPct  Decimal? @map("party_loyalty_pct") @db.Decimal(5, 2)
+  bipartisanPct    Decimal? @map("bipartisan_pct") @db.Decimal(5, 2)
+  missedVotesPct   Decimal? @map("missed_votes_pct") @db.Decimal(5, 2)
+  billsSponsored   Int?    @map("bills_sponsored")
+  billsCosponsored Int?    @map("bills_cosponsored")
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([candidateId, congressNumber])
+  @@map("member_stats")
+}
